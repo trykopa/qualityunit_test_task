@@ -31,21 +31,28 @@ public class Main {
                 .map(string -> string.trim().split("\s+"))
                 .toArray(String[][] :: new);
 
-        long startTime = System.nanoTime();
-        printAverageWaitingTime(lines);
-        long stopTime = System.nanoTime();
-        System.out.println("Elapsed time " + (stopTime - startTime) + "\n");
+
+
 
         try {
+            long startTime = System.nanoTime();
+            for(int i = 0; i < 100; i++)
+                printAverageWaitingTime(lines);
+            long stopTime = System.nanoTime();
+
             long startTimeSecond = System.nanoTime();
-            printAverageWaitingTimeConcurrent(lines);
+            for(int i = 0; i < 100; i++)
+                printAverageWaitingTimeConcurrent(lines);
             long stopTimeSecond = System.nanoTime();
-            System.out.println("Elapsed time " + (stopTimeSecond - startTimeSecond) + "\n");
 
             long startTimeThird = System.nanoTime();
-            printAWTC2(lines);
+            for(int i = 0; i < 100; i++)
+                printAWTC2(lines);
             long stopTimeThird = System.nanoTime();
-            System.out.println("Elapsed time " + (stopTimeThird - startTimeThird) + "\n");
+
+            System.out.println("Elapsed time single thread method:  " + (stopTime - startTime)/100 + "\n");
+            System.out.println("Elapsed time multiple executors and threads method: " + (stopTimeSecond - startTimeSecond)/100 + "\n");
+            System.out.println("Elapsed time single executor and multiple threads method " + (stopTimeThird - startTimeThird)/100 + "\n");
 
         } catch (InterruptedException e) {
             e.printStackTrace();
@@ -53,6 +60,7 @@ public class Main {
             es.shutdown();
             es.awaitTermination(Long.MAX_VALUE , TimeUnit.NANOSECONDS);
         }
+
 
     }
 
