@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class Main {
@@ -25,34 +26,44 @@ public class Main {
 
     private static final DateTimeFormatter dtf = DateTimeFormatter.ofPattern("d.MM.yyyy");
 
+    private static final int ITERATIONS = 100000;
+
     public static void main(String[] args) throws InterruptedException {
 
         String[][] lines = Arrays.stream(testBlock.trim().split("\n"))
                 .map(string -> string.trim().split("\s+"))
                 .toArray(String[][] :: new);
 
+        List<Line> lineList = testBlock.lines()
+                .skip(1)
+                .map(Main :: stringToLine)
+                .collect(Collectors.toList());
 
+        long startTime = System.nanoTime();
+        for(int i = 0; i < ITERATIONS; i++)
+            printAverageWaitingTime(lines);
+        long stopTime = System.nanoTime();
 
+        long startTime4 = System.nanoTime();
+        for(int i = 0; i < ITERATIONS; i++)
+        printAverageWaitingTimeStream(lineList);
+        long stopTime4 = System.nanoTime();
 
         try {
-            long startTime = System.nanoTime();
-            for(int i = 0; i < 100; i++)
-                printAverageWaitingTime(lines);
-            long stopTime = System.nanoTime();
-
             long startTimeSecond = System.nanoTime();
-            for(int i = 0; i < 100; i++)
+            for(int i = 0; i < ITERATIONS; i++)
                 printAverageWaitingTimeConcurrent(lines);
             long stopTimeSecond = System.nanoTime();
 
             long startTimeThird = System.nanoTime();
-            for(int i = 0; i < 100; i++)
+            for(int i = 0; i < ITERATIONS; i++)
                 printAWTC2(lines);
             long stopTimeThird = System.nanoTime();
 
-            System.out.println("Elapsed time single thread method:  " + (stopTime - startTime)/100 + "\n");
-            System.out.println("Elapsed time multiple executors and threads method: " + (stopTimeSecond - startTimeSecond)/100 + "\n");
-            System.out.println("Elapsed time single executor and multiple threads method " + (stopTimeThird - startTimeThird)/100 + "\n");
+            System.out.println("Elapsed time single thread method:  " + (stopTime - startTime)/ITERATIONS + "\n");
+            System.out.println("Elapsed time multiple executors and threads method: " + (stopTimeSecond - startTimeSecond)/ITERATIONS + "\n");
+            System.out.println("Elapsed time single executor and multiple threads method " + (stopTimeThird - startTimeThird)/ITERATIONS + "\n");
+            System.out.println("Elapsed time with StreamAPI " + (stopTime4 - startTime4)/ITERATIONS + "\n");
 
         } catch (InterruptedException e) {
             e.printStackTrace();
@@ -220,6 +231,49 @@ public class Main {
         }
     }
 
+    public static void printAverageWaitingTimeStream(List<Line> lineList) {
+        for (Line l : lineList) {
+            if (l.getType().equals("D")) {
+                String service = l.getService();
+                String question = l.getQuestion();
+                String responseType = l.getResponseType();
+                String date = l.getDate();
+                LocalDate start;
+                LocalDate end = null;
+                if (date.length() <= 11) {
+                    start = LocalDate.parse(date , dtf);
+                } else {
+                    String[] dates = date.split("-");
+                    start = LocalDate.parse(dates[0] , dtf);
+                    end = LocalDate.parse(dates[1] , dtf);
+                }
+                LocalDate finalEnd = end;
 
+                double res = lineList.stream().limit(lineList.indexOf(l))
+                        .filter(c -> c instanceof LineC &&
+                                (c.getService().startsWith(service) || service.equals("*")) &&
+                                (c.getQuestion().startsWith(question) || question.equals("*")) &&
+                                c.getResponseType().equals(responseType) &&
+                                ((finalEnd == null) ?
+                                        LocalDate.parse(c.getDate() , dtf).isEqual(start) :
+                                        (
+                                                LocalDate.parse(c.getDate() , dtf).isAfter(start) &
+                                                        LocalDate.parse(c.getDate() , dtf).isBefore(finalEnd))
+                                )
+                        )
+                        .mapToInt(s -> ((LineC) s).getTime())
+                        .average()
+                        .orElse(0);
+                System.out.println(res != 0 ? (int) res : "-");
+            }
+        }
+    }
+
+    public static Line stringToLine(String str) {
+        String[] tmp = str.trim().split("\s+");
+        return tmp[0].equals("D") ?
+                new LineD(tmp[0] , tmp[1] , tmp[2] , tmp[3] , tmp[4]) :
+                new LineC(tmp[0] , tmp[1] , tmp[2] , tmp[3] , tmp[4] , Integer.parseInt(tmp[5]));
+    }
 
 }
